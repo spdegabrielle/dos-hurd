@@ -1,10 +1,13 @@
-#lang racket
+#lang racket/base
 
 (provide cap? rw-cap? read-cap? write-cap?
          cap-can-read? cap-can-write?
          new-cap
          cap-seal cap-unseal
          rw->read-cap rw->write-cap)
+
+(require racket/contract
+         racket/match)
 
 ;; TODO: Add nice display representation
 (struct cap (name id))
