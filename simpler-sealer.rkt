@@ -1,18 +1,32 @@
 #lang racket/base
 
-(define (make-sealer-pair)
+(require racket/match)
+
+;; TODO: Actually this has a dangerous problem
+;;   where it reveals the stamp to the sealed object
+(define (make-sealer-pair [name #f])
   ;; cons cells are distinct according to `eq?'
   (define hidden-stamp
     (cons 'hidden 'stamp))
+  (define sealed-name
+    (if name
+        (string->symbol (format "sealed-by-~a" name))
+        'sealed))
   (define (sealer val)
-    (define (sealed stamp)
-      (if (eq? stamp hidden-stamp)
-          val
-          (error "Wrong unsealer!")))
-    sealed)
+    (define (sealed stamp action)
+      (match action
+        ['unseal
+         (if (eq? stamp hidden-stamp)
+             val
+             (error "Wrong unsealer!"))]
+        ['same-stamp?
+         (eq? stamp hidden-stamp)]))
+    (procedure-rename sealed sealed-name))
   (define (unsealer sealed)
-    (sealed hidden-stamp))
-  (values sealer unsealer))
+    (sealed hidden-stamp 'unseal))
+  (define (sealed? sealed)
+    (sealed hidden-stamp 'same-stamp?))
+  (values sealer unsealer sealed?))
 
 (module+ test
   (require rackunit
