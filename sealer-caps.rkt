@@ -61,6 +61,11 @@
       [(? rw-cap?) (rw-cap-unsealer cap)]))
   (unsealer sealed))
 
+(define-values (struct:base-seal base-seal sealed? base-seal-ref base-seal-set!)
+  (make-struct-type 'seal #f 1 0))
+(define seal-trademark
+  (make-struct-field-accessor base-seal-ref 0))
+
 (define (new-cap [name #f]
                  ;; rights amplification
                  #:sudo-sealer [sudo-sealer #f])
@@ -72,13 +77,15 @@
         (string->symbol (format "sealed-by ~a"
                                 name))
         'sealed))
-  (define-values (struct:seal seal sealed? seal-ref seal-set!)
-    (make-struct-type struct-name #f 1 0))
+  (define-values (struct:seal make-seal sealed? seal-ref seal-set!)
+    (make-struct-type struct-name struct:base-seal 1 0))
   (define unseal
     (make-struct-field-accessor seal-ref 0))
 
   (define this-trademark
     (trademark name sealed? #f))
+  (define (seal val)
+    (make-seal this-trademark val))
   (define this-cap
     (rw-cap this-trademark seal unseal))
   ;; Add rights amplification if sudo-sealer supplied
@@ -161,3 +168,38 @@
    (lambda ()
      (cap-unseal write-foo-cap
                  (cap-seal foo-cap 'uhoh)))))
+
+;;; All the actual work for rights amplification
+
+(define (sudo-get-rw-cap sudo sudoable)
+  (-> (or/c cap? trademark? sealed?)
+      readable-cap? rw-cap?)
+  (define trademark
+    (match sudoable
+      [(? sealed?) (seal-trademark sudoable)]
+      [(? cap?) (cap-trademark sudoable)]
+      [(? trademark?) sudoable]))
+  (define sudo-sealed
+    (trademark-sudo-sealed trademark))
+  (unless sudo-sealed
+    (error "cap is not sudo-sealed"))
+  (cap-unseal sudo sudo-sealed))
+
+(define (sudo-unseal sudo sealed)
+  (cap-unseal (sudo-get-rw-cap sudo sealed)
+              sealed))
+
+(module+ test
+  (define bar-cap
+    (new-cap 'bar
+             #:sudo-sealer foo-cap))
+  (define sealed-by-bar
+    (cap-seal bar-cap 'ooohooo))
+  (test-eq?
+   "sudo-get-rw-cap gets the original cap"
+   (sudo-get-rw-cap foo-cap sealed-by-bar)
+   bar-cap)
+  (test-eq?
+   "sudo-unseal correctly unseals"
+   (sudo-unseal foo-cap sealed-by-bar)
+   'ooohooo))
