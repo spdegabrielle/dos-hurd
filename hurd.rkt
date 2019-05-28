@@ -54,7 +54,7 @@
 (define (hurd-exit . caps-and-vals)
   (os2-exit (hasheq/l caps-and-vals)))
 
-(define (hurd-mbr . ts)
+(define (hurd-grub . ts)
   (hurd empty-env ts))
 
 (define (hurd-boot w)
@@ -86,7 +86,7 @@
  (contract-out
   [hurd?
    (-> any/c boolean?)]
-  [hurd-mbr
+  [hurd-grub
    (->* () () #:rest any/c
         hurd?)]
   [hurd-write
