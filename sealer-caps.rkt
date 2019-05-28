@@ -1,7 +1,7 @@
 #lang racket/base
 
 (provide cap? rw-cap? read-cap? write-cap?
-         cap-can-read? cap-can-write?
+         readable-cap? writeable-cap?
          new-cap
          cap-id
          cap-seal cap-unseal
@@ -29,13 +29,13 @@
   #:methods gen:custom-write
   [(define write-proc (cap-printer "write-cap"))])
 
-(define (cap-can-read? cap)
+(define (readable-cap? cap)
   (or (rw-cap? cap) (read-cap? cap)))
-(define (cap-can-write? cap)
+(define (writeable-cap? cap)
   (or (rw-cap? cap) (write-cap? cap)))
 
 (define/contract (cap-seal cap data)
-  (-> cap-can-write? any/c any/c)
+  (-> writeable-cap? any/c any/c)
   (define sealer
     (match cap
       [(? write-cap?) (write-cap-sealer cap)]
@@ -43,7 +43,7 @@
   (sealer data))
 
 (define/contract (cap-unseal cap sealed)
-  (-> cap-can-read? any/c any/c)
+  (-> readable-cap? any/c any/c)
   (define unsealer
     (match cap
       [(? read-cap?) (read-cap-unsealer cap)]
@@ -68,11 +68,11 @@
   (define foo-cap
     (new-cap 'foo))
   (test-true
-   "rw-caps pass cap-can-read?"
-   (cap-can-read? foo-cap))
+   "rw-caps pass readable-cap?"
+   (readable-cap? foo-cap))
   (test-true
-   "rw-caps pass cap-can-write?"
-   (cap-can-write? foo-cap))
+   "rw-caps pass writeable-cap?"
+   (writeable-cap? foo-cap))
   (define sealed-by-foo
     (cap-seal foo-cap 'hello))
   (test-eq?
@@ -103,17 +103,17 @@
   (define write-foo-cap
     (rw->write-cap foo-cap))
   (test-true
-   "read-caps pass cap-can-read?"
-   (cap-can-read? read-foo-cap))
+   "read-caps pass readable-cap?"
+   (readable-cap? read-foo-cap))
   (test-true
-   "write-caps pass cap-can-write?"
-   (cap-can-write? write-foo-cap))
+   "write-caps pass writeable-cap?"
+   (writeable-cap? write-foo-cap))
   (test-false
-   "write-caps fail cap-can-read?"
-   (cap-can-read? write-foo-cap))
+   "write-caps fail readable-cap?"
+   (readable-cap? write-foo-cap))
   (test-false
-   "read-caps fail cap-can-write?"
-   (cap-can-write? read-foo-cap))
+   "read-caps fail writeable-cap?"
+   (writeable-cap? read-foo-cap))
 
   (test-eq?
    "read caps can unseal"
