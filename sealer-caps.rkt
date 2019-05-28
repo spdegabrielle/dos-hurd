@@ -1,24 +1,35 @@
 #lang racket/base
 
-(provide cap? rw-cap? read-cap? write-cap?
+(provide #;cap? rw-cap? read-cap? write-cap?
          readable-cap? writeable-cap?
          new-cap
-         cap-id
+         cap-trademark
          cap-seal cap-unseal
          rw->read-cap rw->write-cap)
 
 (require racket/contract
          racket/match)
 
+(struct trademark (name pred [sudo-sealed #:mutable])
+  #:methods gen:custom-write
+  [(define (write-proc trademark port mode)
+     (write-string
+      (if (trademark-name trademark)
+          (format "#<trademark ~a>"
+                  (trademark-name trademark))
+          "#<trademark>")
+      port))])
+
 (define ((cap-printer prefix) cap port mode)
+  (define trademark (cap-trademark cap))
   (write-string
-   (if (cap-name cap)
-       (format "#<~a ~a>" prefix (cap-name cap))
+   (if (trademark-name trademark)
+       (format "#<~a ~a>" prefix
+               (trademark-name trademark))
        (format "#<~a>" prefix))
    port))
 
-;; TODO: Add nice display representation
-(struct cap (name id))
+(struct cap (trademark))
 (struct rw-cap cap (sealer unsealer)
   #:methods gen:custom-write
   [(define write-proc (cap-printer "rw-cap"))])
@@ -50,18 +61,33 @@
       [(? rw-cap?) (rw-cap-unsealer cap)]))
   (unsealer sealed))
 
-(define (new-cap [sealer-name #f])
-  (->* () ((or/c symbol? string? #f)) rw-cap?)
+(define (new-cap [name #f]
+                 ;; rights amplification
+                 #:sudo-sealer [sudo-sealer #f])
+  (->* () ((or/c symbol? string? #f)
+           #:sudo-sealer (or/c writeable-cap? #f))
+       rw-cap?)
   (define struct-name
-    (if sealer-name
+    (if name
         (string->symbol (format "sealed-by ~a"
-                                sealer-name))
+                                name))
         'sealed))
   (define-values (struct:seal seal sealed? seal-ref seal-set!)
     (make-struct-type struct-name #f 1 0))
   (define unseal
     (make-struct-field-accessor seal-ref 0))
-  (rw-cap sealer-name sealed? seal unseal))
+
+  (define this-trademark
+    (trademark name sealed? #f))
+  (define this-cap
+    (rw-cap this-trademark seal unseal))
+  ;; Add rights amplification if sudo-sealer supplied
+  (when sudo-sealer
+    (set-trademark-sudo-sealed!
+     this-trademark
+     (cap-seal sudo-sealer
+               (make-weak-box this-cap))))
+  this-cap)
 
 (module+ test
   (require rackunit)
@@ -87,14 +113,12 @@
 
 (define/contract (rw->read-cap rw-cap)
   (-> rw-cap? read-cap?)
-  (read-cap (cap-name rw-cap)
-            (cap-id rw-cap)
+  (read-cap (cap-trademark rw-cap)
             (rw-cap-unsealer rw-cap)))
 
 (define/contract (rw->write-cap rw-cap)
   (-> rw-cap? write-cap?)
-  (write-cap (cap-name rw-cap)
-             (cap-id rw-cap)
+  (write-cap (cap-trademark rw-cap)
              (rw-cap-sealer rw-cap)))
 
 (module+ test
