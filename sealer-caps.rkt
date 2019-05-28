@@ -9,11 +9,24 @@
 (require racket/contract
          racket/match)
 
+(define ((cap-printer prefix) cap port mode)
+  (write-string
+   (if (cap-name cap)
+       (format "#<~a ~a>" prefix (cap-name cap))
+       (format "#<~a>" prefix))
+   port))
+
 ;; TODO: Add nice display representation
 (struct cap (name id))
-(struct rw-cap cap (sealer unsealer))
-(struct read-cap cap (unsealer))
-(struct write-cap cap (sealer))
+(struct rw-cap cap (sealer unsealer)
+  #:methods gen:custom-write
+  [(define write-proc (cap-printer "rw-cap"))])
+(struct read-cap cap (unsealer)
+  #:methods gen:custom-write
+  [(define write-proc (cap-printer "read-cap"))])
+(struct write-cap cap (sealer)
+  #:methods gen:custom-write
+  [(define write-proc (cap-printer "write-cap"))])
 
 (define (cap-can-read? cap)
   (or (rw-cap? cap) (read-cap? cap)))
@@ -37,10 +50,11 @@
   (unsealer sealed))
 
 (define (new-cap [sealer-name #f])
-  (->* () ((or/c symbol? #f)) rw-cap?)
+  (->* () ((or/c symbol? string? #f)) rw-cap?)
   (define struct-name
     (if sealer-name
-        (string->symbol (string-append "sealed-by-" (symbol->string sealer-name)))
+        (string->symbol (format "sealed-by ~a"
+                                sealer-name))
         'sealed))
   (define-values (struct:seal seal sealed? seal-ref seal-set!)
     (make-struct-type struct-name #f 1 0))
