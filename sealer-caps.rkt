@@ -1,7 +1,10 @@
 #lang racket
 
 (provide cap? rw-cap? read-cap? write-cap?
-         cap-can-read? cap-can-write?)
+         cap-can-read? cap-can-write?
+         new-cap
+         cap-seal cap-unseal
+         rw->read-cap rw->write-cap)
 
 ;; TODO: Add nice display representation
 (struct cap (name id))
@@ -63,3 +66,54 @@
    any/c
    (lambda ()
      (cap-unseal (new-cap) sealed-by-foo))))
+
+(define/contract (rw->read-cap rw-cap)
+  (-> rw-cap? read-cap?)
+  (read-cap (cap-name rw-cap)
+            (cap-id rw-cap)
+            (rw-cap-unsealer rw-cap)))
+
+(define/contract (rw->write-cap rw-cap)
+  (-> rw-cap? write-cap?)
+  (write-cap (cap-name rw-cap)
+             (cap-id rw-cap)
+             (rw-cap-sealer rw-cap)))
+
+(module+ test
+  (define read-foo-cap
+    (rw->read-cap foo-cap))
+  (define write-foo-cap
+    (rw->write-cap foo-cap))
+  (test-true
+   "read-caps pass cap-can-read?"
+   (cap-can-read? read-foo-cap))
+  (test-true
+   "write-caps pass cap-can-write?"
+   (cap-can-write? write-foo-cap))
+  (test-false
+   "write-caps fail cap-can-read?"
+   (cap-can-read? write-foo-cap))
+  (test-false
+   "read-caps fail cap-can-write?"
+   (cap-can-write? read-foo-cap))
+
+  (test-eq?
+   "read caps can unseal"
+   (cap-unseal read-foo-cap sealed-by-foo)
+   'hello)
+  (test-eq?
+   "write caps can seal"
+   (cap-unseal foo-cap
+               (cap-seal write-foo-cap 'goodbye))
+   'goodbye)
+  (test-exn
+   "read caps can't seal"
+   any/c
+   (lambda ()
+     (cap-seal read-foo-cap 'yikes)))
+  (test-exn
+   "write caps can't unseal"
+   any/c
+   (lambda ()
+     (cap-unseal write-foo-cap
+                 (cap-seal foo-cap 'uhoh)))))
