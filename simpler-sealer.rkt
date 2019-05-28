@@ -1,6 +1,7 @@
 #lang racket/base
 
 (define (make-sealer-pair)
+  ;; cons cells are distinct according to `eq?'
   (define hidden-stamp
     (cons 'hidden 'stamp))
   (define (sealer val)
