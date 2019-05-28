@@ -5,7 +5,10 @@
          new-cap
          cap-trademark
          cap-seal cap-unseal
-         rw->read-cap rw->write-cap)
+         rw->read-cap rw->write-cap
+
+         sudo-get-rw-cap
+         sudo-unseal)
 
 (require racket/contract
          racket/match)
@@ -203,3 +206,19 @@
    "sudo-unseal correctly unseals"
    (sudo-unseal foo-cap sealed-by-bar)
    'ooohooo))
+
+(define/contract (sealed-by? sealed cap-or-trademark)
+  (-> sealed? (or/c trademark? cap?) any/c)
+  (define trademark
+    (match cap-or-trademark
+      [(? trademark?) cap-or-trademark]
+      [(? cap?) (cap-trademark cap-or-trademark)]))
+  ((trademark-pred trademark) sealed))
+
+(module+ test
+  (test-true
+   "sealed-by? in the affirmative"
+   (sealed-by? sealed-by-foo foo-cap))
+  (test-false
+   "sealed-by? in the negative"
+   (sealed-by? sealed-by-foo bar-cap)))
