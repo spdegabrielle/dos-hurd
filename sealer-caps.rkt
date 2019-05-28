@@ -3,6 +3,7 @@
 (provide cap? rw-cap? read-cap? write-cap?
          cap-can-read? cap-can-write?
          new-cap
+         cap-id
          cap-seal cap-unseal
          rw->read-cap rw->write-cap)
 
