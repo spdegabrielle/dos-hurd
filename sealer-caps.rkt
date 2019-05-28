@@ -86,7 +86,9 @@
     (set-trademark-sudo-sealed!
      this-trademark
      (cap-seal sudo-sealer
-               (make-weak-box this-cap))))
+               ;; Do we need to wrap this in a weak box?
+               ;; I'm actually unsure.
+               this-cap)))
   this-cap)
 
 (module+ test
