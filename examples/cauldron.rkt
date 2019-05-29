@@ -222,7 +222,7 @@
   (call-with-chaos
    (raart:make-raart)
    (lambda ()
-     (fiat-lux (game (hurd-boot (hurd-grub (cauldron display-cap)))
+     (fiat-lux (game (hurd-grub (cauldron display-cap))
                      display-cap))))
   )
 
