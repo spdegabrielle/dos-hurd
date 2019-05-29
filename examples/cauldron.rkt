@@ -116,8 +116,7 @@
   '----------'")
 
 (define cauldron-raart
-  (apply
-   raart:vappend
+  (raart:vappend*
    #:halign 'left
    (map (lambda (l)
           (raart:text l))
