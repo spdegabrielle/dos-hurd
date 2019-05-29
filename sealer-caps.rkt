@@ -1,69 +1,69 @@
 #lang racket/base
 
-(provide #;cap? rw-cap? read-cap? write-cap?
-         readable-cap? writeable-cap?
-         new-cap
-         cap-pred
-         cap-seal cap-unseal
-         rw->read-cap rw->write-cap)
+(provide #;key? rw-key? read-key? write-key?
+         readable-key? writeable-key?
+         new-key
+         key-pred
+         key-seal key-unseal
+         rw->read-key rw->write-key)
 
 (require racket/contract
          racket/match)
 
-(define ((cap-printer prefix) cap port mode)
+(define ((key-printer prefix) key port mode)
   (write-string
-   (if (cap-name cap)
+   (if (key-name key)
        (format "#<~a ~a>" prefix
-               (cap-name cap))
+               (key-name key))
        (format "#<~a>" prefix))
    port))
 
-(struct cap (name pred sealer unsealer)
+(struct key (name pred sealer unsealer)
   #:methods gen:custom-write
-  [(define (write-proc cap port mode)
+  [(define (write-proc key port mode)
      (define prefix
-       (match cap
-         [(and (? cap-sealer) (? cap-unsealer))
-          "rw-cap"]
-         [(? cap-sealer)
-          "read-cap"]
-         [(? cap-unsealer)
-          "write-cap"]))
+       (match key
+         [(and (? key-sealer) (? key-unsealer))
+          "rw-key"]
+         [(? key-sealer)
+          "read-key"]
+         [(? key-unsealer)
+          "write-key"]))
      (write-string
-      (if (cap-name cap)
+      (if (key-name key)
           (format "#<~a ~a>" prefix
-                  (cap-name cap))
+                  (key-name key))
           (format "#<~a>" prefix))
       port))])
 
 (define (truthy val)
   (if val #t #f))
 
-(define (readable-cap? cap)
-  (truthy (cap-unsealer cap)))
-(define (writeable-cap? cap)
-  (truthy (cap-sealer cap)))
-(define (rw-cap? cap)
-  (truthy (and (cap-sealer cap)
-               (cap-unsealer cap))))
-(define (read-cap? cap)
-  (and (cap-unsealer cap)
-       (not (cap-sealer cap))))
-(define (write-cap? cap)
-  (and (cap-sealer cap)
-       (not (cap-unsealer cap))))
+(define (readable-key? key)
+  (truthy (key-unsealer key)))
+(define (writeable-key? key)
+  (truthy (key-sealer key)))
+(define (rw-key? key)
+  (truthy (and (key-sealer key)
+               (key-unsealer key))))
+(define (read-key? key)
+  (and (key-unsealer key)
+       (not (key-sealer key))))
+(define (write-key? key)
+  (and (key-sealer key)
+       (not (key-unsealer key))))
 
-(define/contract (cap-seal cap data)
-  (-> writeable-cap? any/c any/c)
-  ((cap-sealer cap) data))
+(define/contract (key-seal key data)
+  (-> writeable-key? any/c any/c)
+  ((key-sealer key) data))
 
-(define/contract (cap-unseal cap sealed)
-  (-> readable-cap? any/c any/c)
-  ((cap-unsealer cap) sealed))
+(define/contract (key-unseal key sealed)
+  (-> readable-key? any/c any/c)
+  ((key-unsealer key) sealed))
 
-(define/contract (new-cap [name #f])
+(define/contract (new-key [name #f])
   (->* () ((or/c symbol? string? #f))
-       rw-cap?)
+       rw-key?)
   (define struct-name
     (if name
         (string->symbol (format "sealed-by ~a"
@@ -74,96 +74,96 @@
   (define unseal
     (make-struct-field-accessor seal-ref 0))
 
-  (define this-cap
-    (cap name pred seal unseal))
-  this-cap)
+  (define this-key
+    (key name pred seal unseal))
+  this-key)
 
 (module+ test
   (require rackunit)
-  (define foo-cap
-    (new-cap 'foo))
+  (define foo-key
+    (new-key 'foo))
   (test-true
-   "rw-caps pass readable-cap?"
-   (readable-cap? foo-cap))
+   "rw-keys pass readable-key?"
+   (readable-key? foo-key))
   (test-true
-   "rw-caps pass writeable-cap?"
-   (writeable-cap? foo-cap))
+   "rw-keys pass writeable-key?"
+   (writeable-key? foo-key))
   (define sealed-by-foo
-    (cap-seal foo-cap 'hello))
+    (key-seal foo-key 'hello))
   (test-eq?
    "Basic sealing/unsealing"
-   (cap-unseal foo-cap sealed-by-foo)
+   (key-unseal foo-key sealed-by-foo)
    'hello)
   (test-exn
-   "Trying to unseal with the wrong cap fails"
+   "Trying to unseal with the wrong key fails"
    any/c
    (lambda ()
-     (cap-unseal (new-cap) sealed-by-foo))))
+     (key-unseal (new-key) sealed-by-foo))))
 
-(define/contract (rw->read-cap rw-cap)
-  (-> rw-cap? read-cap?)
-  (cap (cap-name rw-cap)
-       (cap-pred rw-cap)
+(define/contract (rw->read-key rw-key)
+  (-> rw-key? read-key?)
+  (key (key-name rw-key)
+       (key-pred rw-key)
        #f
-       (cap-unsealer rw-cap)))
+       (key-unsealer rw-key)))
 
-(define/contract (rw->write-cap rw-cap)
-  (-> rw-cap? write-cap?)
-  (cap (cap-name rw-cap)
-       (cap-pred rw-cap)
-       (cap-sealer rw-cap)
+(define/contract (rw->write-key rw-key)
+  (-> rw-key? write-key?)
+  (key (key-name rw-key)
+       (key-pred rw-key)
+       (key-sealer rw-key)
        #f))
 
 (module+ test
-  (define read-foo-cap
-    (rw->read-cap foo-cap))
-  (define write-foo-cap
-    (rw->write-cap foo-cap))
+  (define read-foo-key
+    (rw->read-key foo-key))
+  (define write-foo-key
+    (rw->write-key foo-key))
   (test-true
-   "read-caps pass readable-cap?"
-   (readable-cap? read-foo-cap))
+   "read-keys pass readable-key?"
+   (readable-key? read-foo-key))
   (test-true
-   "write-caps pass writeable-cap?"
-   (writeable-cap? write-foo-cap))
+   "write-keys pass writeable-key?"
+   (writeable-key? write-foo-key))
   (test-false
-   "write-caps fail readable-cap?"
-   (readable-cap? write-foo-cap))
+   "write-keys fail readable-key?"
+   (readable-key? write-foo-key))
   (test-false
-   "read-caps fail writeable-cap?"
-   (writeable-cap? read-foo-cap))
+   "read-keys fail writeable-key?"
+   (writeable-key? read-foo-key))
 
   (test-eq?
-   "read caps can unseal"
-   (cap-unseal read-foo-cap sealed-by-foo)
+   "read keys can unseal"
+   (key-unseal read-foo-key sealed-by-foo)
    'hello)
   (test-eq?
-   "write caps can seal"
-   (cap-unseal foo-cap
-               (cap-seal write-foo-cap 'goodbye))
+   "write keys can seal"
+   (key-unseal foo-key
+               (key-seal write-foo-key 'goodbye))
    'goodbye)
   (test-exn
-   "read caps can't seal"
+   "read keys can't seal"
    any/c
    (lambda ()
-     (cap-seal read-foo-cap 'yikes)))
+     (key-seal read-foo-key 'yikes)))
   (test-exn
-   "write caps can't unseal"
+   "write keys can't unseal"
    any/c
    (lambda ()
-     (cap-unseal write-foo-cap
-                 (cap-seal foo-cap 'uhoh)))))
+     (key-unseal write-foo-key
+                 (key-seal foo-key 'uhoh)))))
 
-(define/contract (sealed-by? sealed cap)
-  (-> any/c cap? any/c)
-  ((cap-pred cap) sealed))
+(define/contract (sealed-by? sealed key)
+  (-> any/c key? any/c)
+  ((key-pred key) sealed))
 
 (module+ test
-  (define bar-cap
-    (new-cap 'bar))
+  (define bar-key
+    (new-key 'bar))
 
   (test-true
    "sealed-by? in the affirmative"
-   (sealed-by? sealed-by-foo foo-cap))
+   (sealed-by? sealed-by-foo foo-key))
   (test-false
    "sealed-by? in the negative"
-   (sealed-by? sealed-by-foo bar-cap)))
+   (sealed-by? sealed-by-foo bar-key)))

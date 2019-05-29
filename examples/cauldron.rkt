@@ -12,7 +12,7 @@
    (raart:place-cursor-after
     (val->raart
      (hurd-env-read1 (game-hurd gw)
-                     (game-display-cap gw)
+                     (game-display-key gw)
                      'uhoh)
      (game-hurd gw))
     0 0)))
@@ -20,8 +20,8 @@
 (struct game
   (;; hurd game state
    hurd
-   ;; display capability
-   display-cap)
+   ;; display keyability
+   display-key)
   #:methods gen:word
   [(define (word-tick gw)
      (struct-copy game gw
@@ -107,7 +107,7 @@
 
 (define ((cauldron display) env)
   (define bubble-display-key
-    (new-cap 'bubble-display))
+    (new-key 'bubble-display))
   (define bubble-canvas
     (raart:blank cauldron-width bubble-max-height))
   (define (new-bubble-cooldown)
@@ -154,13 +154,14 @@
        lst))
 
 (define (start-game)
-  (define display-cap
-    (new-cap 'display))
+  (define display-key
+    (new-key 'display))
   (call-with-chaos
    (raart:make-raart)
    (lambda ()
-     (fiat-lux (game (hurd-grub (cauldron display-cap))
-                     display-cap)))))
+     (fiat-lux (game (hurd-grub (cauldron display-key))
+                     display-key))))
+  (void))
 
 (module+ main
   (start-game))

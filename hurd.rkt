@@ -16,13 +16,13 @@
   (parameterize ([current-sudoer sudoer])
     (thunk)))
 
-(struct sudoable (sealed-by-cap sealed-by-sudo))
+(struct sudoable (sealed-by-key sealed-by-sudo))
 
-(define (sudoable-seal cap val)
+(define (sudoable-seal key val)
   (define sudoer (current-sudoer))
-  (sudoable (cap-seal cap val)
+  (sudoable (key-seal key val)
             (and sudoer
-                 (cap-seal sudoer val))))
+                 (key-seal sudoer val))))
 
 (define (hash-append ht k new-l)
   (define old-l
@@ -41,49 +41,49 @@
             ([(k v) (in-hash ht2)])
     (hash-append ht k v)))
 
-(define (env-read env read-cap)
+(define (env-read env read-key)
   (define sealed-vals
-    (hash-ref env (cap-pred read-cap) empty))
+    (hash-ref env (key-pred read-key) empty))
   (map (lambda (sv)
-         (cap-unseal read-cap
-                     (sudoable-sealed-by-cap sv)))
+         (key-unseal read-key
+                     (sudoable-sealed-by-key sv)))
        sealed-vals))
-(define (env-read1 env read-cap d)
-  (define vs (env-read env read-cap))
+(define (env-read1 env read-key d)
+  (define vs (env-read env read-key))
   (if (empty? vs) d (first vs)))
-(define (sudo-env-read env cap-pred sudoer)
+(define (sudo-env-read env key-pred sudoer)
   (define sealed-vals
-    (hash-ref env cap-pred empty))
+    (hash-ref env key-pred empty))
   (map (lambda (sv)
-         (cap-unseal sudoer
+         (key-unseal sudoer
                      (sudoable-sealed-by-sudo sv)))
        sealed-vals))
-(define (sudo-env-read1 env cap-pred sudoer d)
-  (define vs (sudo-env-read env cap-pred sudoer))
+(define (sudo-env-read1 env key-pred sudoer d)
+  (define vs (sudo-env-read env key-pred sudoer))
   (if (empty? vs) d (first vs)))
 (define (sudo-env-all env sudoer)
   (for/fold ([ht '#hasheq()])
-            ([cap-pred (hash-keys env)])
-    (hash-set ht cap-pred
-              (sudo-env-read env cap-pred sudoer))))
+            ([key-pred (hash-keys env)])
+    (hash-set ht key-pred
+              (sudo-env-read env key-pred sudoer))))
 
-(define (hasheq/l caps-and-vals)
+(define (hasheq/l keys-and-vals)
   (let loop ([h (hasheq)]
-             [caps-and-vals caps-and-vals])
-    (match caps-and-vals
+             [keys-and-vals keys-and-vals])
+    (match keys-and-vals
       [(list)
        h]
-      [(list-rest write-cap v caps-and-vals)
-       (loop (hash-cons h (cap-pred write-cap)
-                        (sudoable-seal write-cap v))
-             caps-and-vals)])))
+      [(list-rest write-key v keys-and-vals)
+       (loop (hash-cons h (key-pred write-key)
+                        (sudoable-seal write-key v))
+             keys-and-vals)])))
 
 (define (hurd-write #:threads [ts null]
-                    . caps-and-vals)
-  (os2-write #:threads ts (hasheq/l caps-and-vals)))
+                    . keys-and-vals)
+  (os2-write #:threads ts (hasheq/l keys-and-vals)))
 
-(define (hurd-exit . caps-and-vals)
-  (os2-exit (hasheq/l caps-and-vals)))
+(define (hurd-exit . keys-and-vals)
+  (os2-exit (hasheq/l keys-and-vals)))
 
 (define (hurd-grub . ts)
   (hurd empty-env ts))
@@ -95,25 +95,25 @@
     (os2-boot merge-env env ps empty-env))
   (hurd new-env new-ps))
 
-(define (hurd-env-replace w write-cap vs)
+(define (hurd-env-replace w write-key vs)
   (match-define (hurd env ps) w)
-  (hurd (hash-set env (cap-pred write-cap)
+  (hurd (hash-set env (key-pred write-key)
                   (map (lambda (v)
-                         (sudoable-seal write-cap v))
+                         (sudoable-seal write-key v))
                        vs))
         ps))
-(define (hurd-env-read w read-cap)
+(define (hurd-env-read w read-key)
   (match-define (hurd env ps) w)
-  (env-read env read-cap))
-(define (hurd-env-read1 w read-cap d)
+  (env-read env read-key))
+(define (hurd-env-read1 w read-key d)
   (match-define (hurd env ps) w)
-  (env-read1 env read-cap d))
-(define (sudo-hurd-env-read w cap-pred sudoer)
+  (env-read1 env read-key d))
+(define (sudo-hurd-env-read w key-pred sudoer)
   (match-define (hurd env ps) w)
-  (sudo-env-read env cap-pred sudoer))
-(define (sudo-hurd-env-read1 w cap-pred sudoer d)
+  (sudo-env-read env key-pred sudoer))
+(define (sudo-hurd-env-read1 w key-pred sudoer d)
   (match-define (hurd env ps) w)
-  (sudo-env-read1 env cap-pred sudoer d))
+  (sudo-env-read1 env key-pred sudoer d))
 (define (sudo-hurd-env-all w sudoer)
   (match-define (hurd env ps) w)
   (sudo-env-all env sudoer))
@@ -142,30 +142,30 @@
    (-> hash? (-> any/c any/c)
        hash?)]
   [env-read1
-   (-> hash? readable-cap? any/c
+   (-> hash? readable-key? any/c
        any/c)]
   [env-read
-   (-> hash? readable-cap?
+   (-> hash? readable-key?
        (listof any/c))]
   [hurd-boot
    (-> hurd? hurd?)]
   [hurd-env-replace
-   (-> hurd? writeable-cap? (listof any/c)
+   (-> hurd? writeable-key? (listof any/c)
        hurd?)]
   [hurd-env-read
-   (-> hurd? readable-cap?
+   (-> hurd? readable-key?
        (listof any/c))]
   [hurd-env-read1
-   (-> hurd? readable-cap? any/c
+   (-> hurd? readable-key? any/c
        any/c)]
   [call-with-sudoer
-   (-> writeable-cap? procedure? any/c)]
+   (-> writeable-key? procedure? any/c)]
   [sudo-hurd-env-read
-   (-> hurd? procedure? readable-cap?
+   (-> hurd? procedure? readable-key?
        (listof any/c))]
   [sudo-hurd-env-read1
-   (-> hurd? procedure? readable-cap? any/c
+   (-> hurd? procedure? readable-key? any/c
        any/c)]
   [sudo-hurd-env-all
-   (-> hurd? readable-cap?
+   (-> hurd? readable-key?
        any/c)]))
