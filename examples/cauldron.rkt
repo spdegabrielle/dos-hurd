@@ -6,68 +6,6 @@
 (require "../hurd.rkt"
          "../sealer-caps.rkt")
 
-(module+ scratch
-  (require rackunit)
-
-  (define ((add-to-cap cap) env)
-            (let lp ([ctr 0])
-              (hurd-write cap ctr)
-              (lp (add1 ctr))))
-  (define counter-cap
-    (new-cap 'counter))
-  (check-equal?
-   (hurd-env-read
-    (hurd-boot
-     (hurd-boot (hurd-grub (add-to-cap counter-cap))))
-    counter-cap)
-   '(1))
-
-  ;; So one process exiting doesn't affect the others:
-  (define ((forkbomb-until cap n) env)
-    (let lp ([ctr 0])
-      (hurd-write
-       #:threads (forkbomb-until cap n)
-       cap ctr)
-      (if (eqv? n ctr)
-          (hurd-exit)
-          (lp (add1 ctr)))))
-  (define a-cap
-    (new-cap 'a))
-  (hurd-env-read
-   (hurd-boot
-    (hurd-boot
-     (hurd-boot
-      (hurd-boot
-       (hurd-boot
-        (hurd-grub (forkbomb-until a-cap 1)))))))
-   a-cap)
-  
-  (define sudoer
-    (new-cap 'sudo))
-  (sudo-hurd-env-all
-   (call-with-sudoer
-    sudoer
-    (lambda ()
-      (hurd-boot
-       (hurd-boot
-        (hurd-boot
-         (hurd-boot
-          (hurd-boot
-           (hurd-grub (forkbomb-until a-cap 1)))))))))
-   sudoer)
-
-  ;; Still prints out '(0 1 0 0 1 0 1 0)
-
-  )
-
-(define ((steamer x-pos report-alive) env)
-  (define to-height
-    (random 1 10))
-  (define left? #t)
-  
-  'TODO
-  )
-
 (define (raart-render-game gw [width 80] [height 24])
   (raart:matte
    width height
@@ -222,8 +160,7 @@
    (raart:make-raart)
    (lambda ()
      (fiat-lux (game (hurd-grub (cauldron display-cap))
-                     display-cap))))
-  )
+                     display-cap)))))
 
 (module+ main
   (start-game))
