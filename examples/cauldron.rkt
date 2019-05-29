@@ -3,8 +3,8 @@
 (require lux
          (prefix-in raart: raart))
 
-(require "../devel/dos-hurd/hurd.rkt"
-         "../devel/dos-hurd/sealer-caps.rkt")
+(require "../hurd.rkt"
+         "../sealer-caps.rkt")
 
 (module+ scratch
   (require rackunit)
