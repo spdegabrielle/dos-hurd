@@ -159,7 +159,7 @@
   (call-with-chaos
    (raart:make-raart)
    (lambda ()
-     (fiat-lux (game (hurd-grub (cauldron display-key))
+     (fiat-lux (game (hurd-boot (hurd-grub (cauldron display-key)))
                      display-key))))
   (void))
 
