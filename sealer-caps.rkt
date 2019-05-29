@@ -3,36 +3,21 @@
 (provide #;cap? rw-cap? read-cap? write-cap?
          readable-cap? writeable-cap?
          new-cap
-         cap-trademark
          cap-seal cap-unseal
-         rw->read-cap rw->write-cap
-
-         sudo-get-rw-cap
-         sudo-unseal)
+         rw->read-cap rw->write-cap)
 
 (require racket/contract
          racket/match)
 
-(struct trademark (name pred [sudo-sealed #:mutable])
-  #:methods gen:custom-write
-  [(define (write-proc trademark port mode)
-     (write-string
-      (if (trademark-name trademark)
-          (format "#<trademark ~a>"
-                  (trademark-name trademark))
-          "#<trademark>")
-      port))])
-
 (define ((cap-printer prefix) cap port mode)
-  (define trademark (cap-trademark cap))
   (write-string
-   (if (trademark-name trademark)
+   (if (cap-name cap)
        (format "#<~a ~a>" prefix
-               (trademark-name trademark))
+               (cap-name cap))
        (format "#<~a>" prefix))
    port))
 
-(struct cap (trademark))
+(struct cap (name sealed?))
 (struct rw-cap cap (sealer unsealer)
   #:methods gen:custom-write
   [(define write-proc (cap-printer "rw-cap"))])
@@ -64,41 +49,21 @@
       [(? rw-cap?) (rw-cap-unsealer cap)]))
   (unsealer sealed))
 
-(define-values (struct:base-seal base-seal sealed? base-seal-ref base-seal-set!)
-  (make-struct-type 'seal #f 1 0))
-(define seal-trademark
-  (make-struct-field-accessor base-seal-ref 0))
-
-(define (new-cap [name #f]
-                 ;; rights amplification
-                 #:sudo-sealer [sudo-sealer #f])
-  (->* () ((or/c symbol? string? #f)
-           #:sudo-sealer (or/c writeable-cap? #f))
+(define/contract (new-cap [name #f])
+  (->* () ((or/c symbol? string? #f))
        rw-cap?)
   (define struct-name
     (if name
         (string->symbol (format "sealed-by ~a"
                                 name))
         'sealed))
-  (define-values (struct:seal make-seal sealed? seal-ref seal-set!)
-    (make-struct-type struct-name struct:base-seal 1 0))
+  (define-values (struct:seal seal sealed? seal-ref seal-set!)
+    (make-struct-type struct-name #f 1 0))
   (define unseal
     (make-struct-field-accessor seal-ref 0))
 
-  (define this-trademark
-    (trademark name sealed? #f))
-  (define (seal val)
-    (make-seal this-trademark val))
   (define this-cap
-    (rw-cap this-trademark seal unseal))
-  ;; Add rights amplification if sudo-sealer supplied
-  (when sudo-sealer
-    (set-trademark-sudo-sealed!
-     this-trademark
-     (cap-seal sudo-sealer
-               ;; Do we need to wrap this in a weak box?
-               ;; I'm actually unsure.
-               this-cap)))
+    (rw-cap name sealed? seal unseal))
   this-cap)
 
 (module+ test
@@ -125,12 +90,14 @@
 
 (define/contract (rw->read-cap rw-cap)
   (-> rw-cap? read-cap?)
-  (read-cap (cap-trademark rw-cap)
+  (read-cap (cap-name rw-cap)
+            (cap-sealed? rw-cap)
             (rw-cap-unsealer rw-cap)))
 
 (define/contract (rw->write-cap rw-cap)
   (-> rw-cap? write-cap?)
-  (write-cap (cap-trademark rw-cap)
+  (write-cap (cap-name rw-cap)
+             (cap-sealed? rw-cap)
              (rw-cap-sealer rw-cap)))
 
 (module+ test
@@ -172,50 +139,14 @@
      (cap-unseal write-foo-cap
                  (cap-seal foo-cap 'uhoh)))))
 
-;;; All the actual work for rights amplification
-
-(define (sudo-get-rw-cap sudo sudoable)
-  (-> (or/c cap? trademark? sealed?)
-      readable-cap? rw-cap?)
-  (define trademark
-    (match sudoable
-      [(? sealed?) (seal-trademark sudoable)]
-      [(? cap?) (cap-trademark sudoable)]
-      [(? trademark?) sudoable]))
-  (define sudo-sealed
-    (trademark-sudo-sealed trademark))
-  (unless sudo-sealed
-    (error "cap is not sudo-sealed"))
-  (cap-unseal sudo sudo-sealed))
-
-(define (sudo-unseal sudo sealed)
-  (cap-unseal (sudo-get-rw-cap sudo sealed)
-              sealed))
+(define/contract (sealed-by? sealed cap)
+  (-> any/c cap? any/c)
+  ((cap-sealed? cap) sealed))
 
 (module+ test
   (define bar-cap
-    (new-cap 'bar
-             #:sudo-sealer foo-cap))
-  (define sealed-by-bar
-    (cap-seal bar-cap 'ooohooo))
-  (test-eq?
-   "sudo-get-rw-cap gets the original cap"
-   (sudo-get-rw-cap foo-cap sealed-by-bar)
-   bar-cap)
-  (test-eq?
-   "sudo-unseal correctly unseals"
-   (sudo-unseal foo-cap sealed-by-bar)
-   'ooohooo))
+    (new-cap 'bar))
 
-(define/contract (sealed-by? sealed cap-or-trademark)
-  (-> sealed? (or/c trademark? cap?) any/c)
-  (define trademark
-    (match cap-or-trademark
-      [(? trademark?) cap-or-trademark]
-      [(? cap?) (cap-trademark cap-or-trademark)]))
-  ((trademark-pred trademark) sealed))
-
-(module+ test
   (test-true
    "sealed-by? in the affirmative"
    (sealed-by? sealed-by-foo foo-cap))
