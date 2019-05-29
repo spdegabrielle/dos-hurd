@@ -3,6 +3,7 @@
 (provide #;cap? rw-cap? read-cap? write-cap?
          readable-cap? writeable-cap?
          new-cap
+         cap-pred
          cap-seal cap-unseal
          rw->read-cap rw->write-cap)
 
@@ -17,7 +18,7 @@
        (format "#<~a>" prefix))
    port))
 
-(struct cap (name sealed?))
+(struct cap (name pred))
 (struct rw-cap cap (sealer unsealer)
   #:methods gen:custom-write
   [(define write-proc (cap-printer "rw-cap"))])
@@ -57,13 +58,13 @@
         (string->symbol (format "sealed-by ~a"
                                 name))
         'sealed))
-  (define-values (struct:seal seal sealed? seal-ref seal-set!)
+  (define-values (struct:seal seal pred seal-ref seal-set!)
     (make-struct-type struct-name #f 1 0))
   (define unseal
     (make-struct-field-accessor seal-ref 0))
 
   (define this-cap
-    (rw-cap name sealed? seal unseal))
+    (rw-cap name pred seal unseal))
   this-cap)
 
 (module+ test
@@ -91,13 +92,13 @@
 (define/contract (rw->read-cap rw-cap)
   (-> rw-cap? read-cap?)
   (read-cap (cap-name rw-cap)
-            (cap-sealed? rw-cap)
+            (cap-pred rw-cap)
             (rw-cap-unsealer rw-cap)))
 
 (define/contract (rw->write-cap rw-cap)
   (-> rw-cap? write-cap?)
   (write-cap (cap-name rw-cap)
-             (cap-sealed? rw-cap)
+             (cap-pred rw-cap)
              (rw-cap-sealer rw-cap)))
 
 (module+ test
@@ -141,7 +142,7 @@
 
 (define/contract (sealed-by? sealed cap)
   (-> any/c cap? any/c)
-  ((cap-sealed? cap) sealed))
+  ((cap-pred cap) sealed))
 
 (module+ test
   (define bar-cap

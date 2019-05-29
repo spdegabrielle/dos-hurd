@@ -28,7 +28,7 @@
 
 (define (env-read env read-cap)
   (define sealed-vals
-    (hash-ref env (cap-trademark read-cap) empty))
+    (hash-ref env (cap-pred read-cap) empty))
   (map (lambda (sv)
          (cap-unseal read-cap sv))
        sealed-vals))
@@ -43,7 +43,7 @@
       [(list)
        h]
       [(list-rest write-cap v caps-and-vals)
-       (loop (hash-cons h (cap-trademark write-cap)
+       (loop (hash-cons h (cap-pred write-cap)
                         (cap-seal write-cap v))
              caps-and-vals)])))
 
@@ -66,7 +66,7 @@
 
 (define (hurd-env-replace w write-cap vs)
   (match-define (hurd env ps) w)
-  (hurd (hash-set env (cap-trademark write-cap)
+  (hurd (hash-set env (cap-pred write-cap)
                   (map (lambda (v)
                          (cap-seal write-cap v))
                        vs))
