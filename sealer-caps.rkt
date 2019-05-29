@@ -18,37 +18,48 @@
        (format "#<~a>" prefix))
    port))
 
-(struct cap (name pred))
-(struct rw-cap cap (sealer unsealer)
+(struct cap (name pred sealer unsealer)
   #:methods gen:custom-write
-  [(define write-proc (cap-printer "rw-cap"))])
-(struct read-cap cap (unsealer)
-  #:methods gen:custom-write
-  [(define write-proc (cap-printer "read-cap"))])
-(struct write-cap cap (sealer)
-  #:methods gen:custom-write
-  [(define write-proc (cap-printer "write-cap"))])
+  [(define (write-proc cap port mode)
+     (define prefix
+       (match cap
+         [(and (? cap-sealer) (? cap-unsealer))
+          "rw-cap"]
+         [(? cap-sealer)
+          "read-cap"]
+         [(? cap-unsealer)
+          "write-cap"]))
+     (write-string
+      (if (cap-name cap)
+          (format "#<~a ~a>" prefix
+                  (cap-name cap))
+          (format "#<~a>" prefix))
+      port))])
+
+(define (truthy val)
+  (if val #t #f))
 
 (define (readable-cap? cap)
-  (or (rw-cap? cap) (read-cap? cap)))
+  (truthy (cap-unsealer cap)))
 (define (writeable-cap? cap)
-  (or (rw-cap? cap) (write-cap? cap)))
+  (truthy (cap-sealer cap)))
+(define (rw-cap? cap)
+  (truthy (and (cap-sealer cap)
+               (cap-unsealer cap))))
+(define (read-cap? cap)
+  (and (cap-unsealer cap)
+       (not (cap-sealer cap))))
+(define (write-cap? cap)
+  (and (cap-sealer cap)
+       (not (cap-unsealer cap))))
 
 (define/contract (cap-seal cap data)
   (-> writeable-cap? any/c any/c)
-  (define sealer
-    (match cap
-      [(? write-cap?) (write-cap-sealer cap)]
-      [(? rw-cap?) (rw-cap-sealer cap)]))
-  (sealer data))
+  ((cap-sealer cap) data))
 
 (define/contract (cap-unseal cap sealed)
   (-> readable-cap? any/c any/c)
-  (define unsealer
-    (match cap
-      [(? read-cap?) (read-cap-unsealer cap)]
-      [(? rw-cap?) (rw-cap-unsealer cap)]))
-  (unsealer sealed))
+  ((cap-unsealer cap) sealed))
 
 (define/contract (new-cap [name #f])
   (->* () ((or/c symbol? string? #f))
@@ -64,7 +75,7 @@
     (make-struct-field-accessor seal-ref 0))
 
   (define this-cap
-    (rw-cap name pred seal unseal))
+    (cap name pred seal unseal))
   this-cap)
 
 (module+ test
@@ -91,15 +102,17 @@
 
 (define/contract (rw->read-cap rw-cap)
   (-> rw-cap? read-cap?)
-  (read-cap (cap-name rw-cap)
-            (cap-pred rw-cap)
-            (rw-cap-unsealer rw-cap)))
+  (cap (cap-name rw-cap)
+       (cap-pred rw-cap)
+       #f
+       (cap-unsealer rw-cap)))
 
 (define/contract (rw->write-cap rw-cap)
   (-> rw-cap? write-cap?)
-  (write-cap (cap-name rw-cap)
-             (cap-pred rw-cap)
-             (rw-cap-sealer rw-cap)))
+  (cap (cap-name rw-cap)
+       (cap-pred rw-cap)
+       (cap-sealer rw-cap)
+       #f))
 
 (module+ test
   (define read-foo-cap
