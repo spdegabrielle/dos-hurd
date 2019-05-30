@@ -189,16 +189,33 @@
   (chargrid->raart teacup-chockpot-chargrid
                    teacup-chockpot-colorgrid))
 
+(define china-steams-chargrid
+  (string->chargrid
+   (call-with-input-file (build-path pwd "china-steams.txt")
+     port->string)))
+(define china-steams-raart
+  (chargrid->raart china-steams-chargrid))
+(define chock-steams-chargrid
+  (string->chargrid
+   (call-with-input-file (build-path pwd "chock-steams.txt")
+     port->string)))
+(define chock-steams-raart
+  (chargrid->raart chock-steams-chargrid))
+
 (define ((chockpot-teacup display-key) env)
   (define (render env)
-    teacup-chockpot-raart)
+    (raart:place-at teacup-chockpot-raart
+                    0 0
+                    chock-steams-raart))
   (let lp ()
     (hurd-write display-key render)
     (lp)))
 
 (define ((china-teacup display-key) env)
   (define (render env)
-    teacup-china-raart)
+    (raart:place-at teacup-china-raart
+                    0 0
+                    china-steams-raart))
   (let lp ()
     (hurd-write display-key render)
     (lp)))
