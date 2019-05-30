@@ -126,6 +126,8 @@
  (contract-out
   [hurd?
    (-> any/c boolean?)]
+  [hurd-env
+   (-> hurd? hash?)]
   [hurd-grub
    (->* () () #:rest any/c
         hurd?)]
