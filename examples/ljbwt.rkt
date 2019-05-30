@@ -3,6 +3,7 @@
 (require racket/runtime-path
          lux
          (prefix-in raart: raart)
+         ansi
          "../hurd.rkt"
          "../sealer-caps.rkt"
          "./colors.rkt")
@@ -20,7 +21,11 @@
          (val->raart v env))
        lst))
 
-(define (raart-render-game gw [width 84] [height 23])
+(define (raart-render-game gw)
+  (define width
+    (game-display-cols gw))
+  (define height
+    (game-display-rows gw))
   (raart:place-cursor-after
    (raart:matte
     width height
@@ -35,7 +40,10 @@
   (;; hurd game state
    hurd
    ;; display keyability
-   display-key)
+   display-key
+   ;; resolution info
+   display-rows
+   display-cols)
   #:methods gen:word
   [(define (word-tick gw)
      (struct-copy game gw
@@ -44,13 +52,16 @@
      (match e
        ;; quit
        ["q" #f]
+       [(screen-size-report rows cols)
+        (struct-copy game gw
+                     [display-rows rows]
+                     [display-cols cols])]
        [_ gw]))
    (define (word-output gw)
      (raart-render-game gw))
    (define (word-label gw frame-time)
-     "wispy time")
+     "Let's Just Be Weird Together")
    (define (word-fps gw)
-     ;; 30?  60???
      ;; probably 30 is something terminals can reliably
      ;; keep up with...
      30.0)
@@ -373,7 +384,7 @@
                        chock-raart))
       (define ljb
         (raart:place-at cups-and-steam
-                        1 30 (raart:text "Let's Just Be")))
+                        0 30 (raart:text "Let's Just Be")))
       (define ljbwt
         (raart:place-at ljb
                         23 30 (raart:text "Weird Together")))
@@ -383,16 +394,28 @@
       (lp)))
   (cons process to-spawn))
 
+(define (display* . things)
+  (for-each display things)
+  (flush-output))
+
 (define (start-game)
+  (tty-raw!)
+  (display* (dec-soft-terminal-reset)
+            (device-request-screen-size))
+  (match-define (screen-size-report rows columns)
+    (lex-lcd-input (current-input-port)))
+
   (define display-key
     (new-key 'display))
   (call-with-chaos
    (raart:make-raart)
    (lambda ()
-     
      (fiat-lux (game (hurd-boot (hurd-grub
                                  (ljbwt display-key)))
-                     display-key))))
+                     display-key
+                     rows columns))))
+  (display* (dec-soft-terminal-reset)
+            (clear-screen/home))
   (void))
 
 (module+ main
