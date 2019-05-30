@@ -398,24 +398,30 @@
   (for-each display things)
   (flush-output))
 
-(define (start-game)
+(define (with-clean-tty proc)
   (tty-raw!)
   (display* (dec-soft-terminal-reset)
             (device-request-screen-size))
   (match-define (screen-size-report rows columns)
     (lex-lcd-input (current-input-port)))
-
-  (define display-key
-    (new-key 'display))
-  (call-with-chaos
-   (raart:make-raart)
-   (lambda ()
-     (fiat-lux (game (hurd-boot (hurd-grub
-                                 (ljbwt display-key)))
-                     display-key
-                     rows columns))))
+  (define proc-result
+    (proc rows columns))
   (display* (dec-soft-terminal-reset)
             (clear-screen/home))
+  proc-result)
+
+(define (start-game)
+  (with-clean-tty
+    (lambda (rows cols)
+      (define display-key
+        (new-key 'display))
+      (call-with-chaos
+       (raart:make-raart)
+       (lambda ()
+         (fiat-lux (game (hurd-boot (hurd-grub
+                                     (ljbwt display-key)))
+                         display-key
+                         rows cols))))))
   (void))
 
 (module+ main
