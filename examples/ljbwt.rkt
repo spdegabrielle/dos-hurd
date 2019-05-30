@@ -21,15 +21,15 @@
        lst))
 
 (define (raart-render-game gw [width 80] [height 24])
-  (raart:matte
-   width height
-   (raart:place-cursor-after
+  (raart:place-cursor-after
+   (raart:matte
+    width height
     (val->raart
      (hurd-env-read1 (game-hurd gw)
                      (game-display-key gw)
                      (raart:blank 0 0))
-     (game-hurd gw))
-    0 0)))
+     (game-hurd gw)))
+   0 0))
 
 (struct game
   (;; hurd game state
