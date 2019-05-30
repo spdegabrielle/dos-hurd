@@ -8,11 +8,13 @@ dos-hurd. -- not rms
 
 * What is it
 
-dos-hurd is a game engine (well, you can use it to build other things,
-but it's mostly for games) built on top of Jay McCarthy's [[https://docs.racket-lang.org/dos/][DOS]] package
-(which stands for "Delimited Operating-systems Simulator").
-The Hurd layer of this package is an awful lot like the DOS [[https://docs.racket-lang.org/dos/win.html][Win]] layer,
-except that users are not able to select arbitrary symbols as keys.
+DOS/Hurd (or dos-hurd) is a game engine (well, you can use it to build
+other things, but it's mostly for games) built on top of Jay
+McCarthy's [[https://docs.racket-lang.org/dos/][DOS]] package (which stands for "Delimited Operating-systems
+Simulator").
+The Hurd layer of this package is an awful lot like the DOS [[https://docs.racket-lang.org/dos/win.html][Win]] layer
+(in fact, it is more or less a modified version of it), except that
+users are not able to select arbitrary symbols as keys.
 Instead, users must explicitly make capabilities as "channels" to
 read/write to the environment.
 
