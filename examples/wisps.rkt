@@ -109,7 +109,7 @@
                          col (raart:char char))])))
   (let lp ()
     ;; delay for a bit
-    (for ([i (in-range (random 5 30))])
+    (for ([i (in-range (random 15 45))])
       (hurd-write render-to render))
     ;; now write out all the wisp bits
     (for ([coords wisp-order])
