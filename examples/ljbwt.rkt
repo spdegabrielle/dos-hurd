@@ -384,10 +384,14 @@
                        chock-raart))
       (define ljb
         (raart:place-at cups-and-steam
-                        0 30 (raart:text "Let's Just Be")))
+                        0 30
+                        (raart:fg 'brwhite
+                                  (raart:text "Let's Just Be"))))
       (define ljbwt
         (raart:place-at ljb
-                        23 30 (raart:text "Weird Together")))
+                        23 30
+                        (raart:fg 'brwhite
+                                  (raart:text "Weird Together"))))
       ljbwt)
     (let lp ()
       (hurd-write display-key render)
