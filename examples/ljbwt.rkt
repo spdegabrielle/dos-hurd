@@ -20,7 +20,7 @@
          (val->raart v env))
        lst))
 
-(define (raart-render-game gw [width 80] [height 24])
+(define (raart-render-game gw [width 84] [height 23])
   (raart:place-cursor-after
    (raart:matte
     width height
@@ -91,7 +91,8 @@
                [till-droplet 5]
                [droplet-lifetime 15]
                #:between-wisp-min [between-wisp-min 15]
-               #:between-wisp-max [between-wisp-max 45])
+               #:between-wisp-max [between-wisp-max 45]
+               #:sub1? [sub1? #t])
          env)
   (define canvas-w
     (apply max
@@ -103,9 +104,9 @@
     (raart:blank canvas-w canvas-h))
   (define collect-droplets
     (new-key 'collect-droplets))
-  (define (render env)
+  (define (render hurd)
     (define all-droplets
-      (hurd-env-read env collect-droplets))
+      (hurd-env-read hurd collect-droplets))
     (for/fold ([canvas blank-canvas])
               ([droplet-desc all-droplets])
       (match droplet-desc
@@ -129,7 +130,12 @@
                      #:threads
                      (droplet char droplet-lifetime
                               collect-droplets
-                              x y))
+                              (if sub1?
+                                  (sub1 x)
+                                  x)
+                              (if sub1?
+                                  (sub1 y)
+                                  y)))
          ;; delay till next droplet
          (for ([i till-droplet])
            (hurd-write render-to render))]))
@@ -202,23 +208,141 @@
 (define chock-steams-raart
   (chargrid->raart chock-steams-chargrid))
 
-(define ((chockpot-teacup display-key) env)
-  (define (render env)
-    (raart:place-at teacup-chockpot-raart
-                    0 0
-                    chock-steams-raart))
+(define china-steam1-order
+  '((12 11)
+    (12 10)
+    (13 10)
+    (14  9)
+    (13  8)
+    (12  8)
+    (11  8)
+    (10  9)
+    (11  9)
+    (12  9)))
+
+(define china-steam2-order
+  '((17 11)
+    (18 10)
+    (18  9)
+    (19  9)
+    (20  8)
+    (19  7)
+    (18  7)
+    (17  7)
+    (16  8)
+    (17  8)
+    (18  8)))
+
+(define china-steam3-order
+  '((24 11)
+    (24 10)
+    (25 10)
+    (26  9)
+    (25  8)
+    (24  8)
+    (23  8)
+    (22  9)
+    (23  9)
+    (24  9)))
+
+(define chock-steam1-order
+  '((6 5)
+    (7 4)
+    (6 3)
+    (7 2)))
+
+(define chock-steam2-order
+  '((13 4)
+    (14 3)
+    (15 3)
+    (14 2)
+    (13 2)
+    (14 1)
+    (13 1)))
+
+(define chock-steam3-order
+  '((20 4)
+    (19 4)
+    (20 3)
+    (19 2)
+    (20 1)))
+
+(define ((steam wisp-chargrid wisp-order render-to
+                [till-droplet 5]
+                [droplet-lifetime 15]
+                #:between-wisp-min [between-wisp-min 15]
+                #:between-wisp-max [between-wisp-max 45]
+                #:sub1? [sub1? #t])
+         env)
+  (define collect-droplets
+    (new-key 'collect-droplets))
+  (define (render hurd blit-onto)
+    (define all-droplets
+      (hurd-env-read hurd collect-droplets))
+    (for/fold ([canvas blit-onto])
+              ([droplet-desc all-droplets])
+      (match droplet-desc
+        [(list char col row)
+         (raart:place-at canvas
+                         row
+                         col (raart:char char))])))
   (let lp ()
-    (hurd-write display-key render)
+    ;; delay for a bit
+    (for ([i (in-range (random between-wisp-min
+                               between-wisp-max))])
+      (hurd-write render-to render))
+    ;; now write out all the wisp bits
+    (for ([coords wisp-order])
+      (match coords
+        [(list x y)
+         (when sub1?
+           #;(set! x (sub1 x))
+           (set! y (sub1 y)))
+         (define char
+           (vector-ref (vector-ref wisp-chargrid y) x))
+         ;; spawn a new droplet
+         (hurd-write render-to render
+                     #:threads
+                     (droplet char droplet-lifetime
+                              collect-droplets
+                              x y))
+         ;; delay till next droplet
+         (for ([i till-droplet])
+           (hurd-write render-to render))]))
     (lp)))
 
-(define ((china-teacup display-key) env)
-  (define (render env)
-    (raart:place-at teacup-china-raart
-                    0 0
-                    china-steams-raart))
-  (let lp ()
-    (hurd-write display-key render)
-    (lp)))
+(define (teacup display-key cup-raart
+                steam-descs)
+  (define steam-onto-key
+    (new-key 'steam-onto))
+  (define steams
+    (for/list ([steam-desc steam-descs])
+      (match steam-desc
+        [(list steam-chargrid steam-order)
+         (steam steam-chargrid steam-order
+                steam-onto-key)])))
+  (define (process env)
+    (define (render hurd)
+      (for/fold ([steamed-raart cup-raart])
+                ([steamy-renderer
+                  (hurd-env-read hurd steam-onto-key)])
+        (steamy-renderer hurd steamed-raart)))
+    (let lp ()
+      (hurd-write display-key render)
+      (lp)))
+  (cons process steams))
+
+(define (chockpot-teacup display-key)
+  (teacup display-key teacup-chockpot-raart
+          `((,chock-steams-chargrid ,chock-steam1-order)
+            (,chock-steams-chargrid ,chock-steam2-order)
+            (,chock-steams-chargrid ,chock-steam3-order))))
+
+(define (china-teacup display-key)
+  (teacup display-key teacup-china-raart
+          `((,china-steams-chargrid ,china-steam1-order)
+            (,china-steams-chargrid ,china-steam2-order)
+            (,china-steams-chargrid ,china-steam3-order))))
 
 (define (ljbwt display-key)
   (define teacup-china-key
@@ -242,10 +366,18 @@
                          teacup-chock-key
                          (raart:blank 0 0))
          env))
-      (raart:happend #:valign 'bottom
-                     china-raart
-                     (raart:blank 5 1)
-                     chock-raart))
+      (define cups-and-steam
+        (raart:happend #:valign 'bottom
+                       china-raart
+                       (raart:blank 5 1)
+                       chock-raart))
+      (define ljb
+        (raart:place-at cups-and-steam
+                        1 30 (raart:text "Let's Just Be")))
+      (define ljbwt
+        (raart:place-at ljb
+                        23 30 (raart:text "Weird Together")))
+      ljbwt)
     (let lp ()
       (hurd-write display-key render)
       (lp)))
