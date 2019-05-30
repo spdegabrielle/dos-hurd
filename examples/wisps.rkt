@@ -85,7 +85,9 @@
 
 (define ((wisp wisp-chargrid wisp-order render-to
                [till-droplet 5]
-               [droplet-lifetime 15])
+               [droplet-lifetime 15]
+               #:between-wisp-min [between-wisp-min 15]
+               #:between-wisp-max [between-wisp-max 45])
          env)
   (define canvas-w
     (apply max
@@ -109,7 +111,8 @@
                          col (raart:char char))])))
   (let lp ()
     ;; delay for a bit
-    (for ([i (in-range (random 15 45))])
+    (for ([i (in-range (random between-wisp-min
+                               between-wisp-max))])
       (hurd-write render-to render))
     ;; now write out all the wisp bits
     (for ([coords wisp-order])
