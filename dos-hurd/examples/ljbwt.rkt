@@ -73,86 +73,6 @@
     (for/vector ([char row])
       char)))
 
-(define wisp-string
-  "\
-  .'
- '.
-   )
- .'")
-
-(define wisp-chargrid
-  (string->chargrid wisp-string))
-
-(define wisp-order
-  '((1 3)
-    (2 3)
-    (3 2)
-    (2 1)
-    (1 1)
-    (2 0)
-    (3 0)))
-
-(define ((droplet char lifetime write-to x y) env)
-  (for ([i (in-range lifetime)])
-    (hurd-write write-to
-                (list char x y)))
-  (hurd-exit))
-
-(define ((wisp wisp-chargrid wisp-order render-to
-               [till-droplet 5]
-               [droplet-lifetime 15]
-               #:between-wisp-min [between-wisp-min 15]
-               #:between-wisp-max [between-wisp-max 45]
-               #:sub1? [sub1? #t])
-         env)
-  (define canvas-w
-    (apply max
-           (for/list ([row wisp-chargrid])
-             (vector-length row))))
-  (define canvas-h
-    (vector-length wisp-chargrid))
-  (define blank-canvas
-    (raart:blank canvas-w canvas-h))
-  (define collect-droplets
-    (new-key 'collect-droplets))
-  (define (render hurd)
-    (define all-droplets
-      (hurd-env-read hurd collect-droplets))
-    (for/fold ([canvas blank-canvas])
-              ([droplet-desc all-droplets])
-      (match droplet-desc
-        [(list char col row)
-         (raart:place-at canvas
-                         row
-                         col (raart:char char))])))
-  (let lp ()
-    ;; delay for a bit
-    (for ([i (in-range (random between-wisp-min
-                               between-wisp-max))])
-      (hurd-write render-to render))
-    ;; now write out all the wisp bits
-    (for ([coords wisp-order])
-      (match coords
-        [(list x y)
-         (define char
-           (vector-ref (vector-ref wisp-chargrid y) x))
-         ;; spawn a new droplet
-         (hurd-write render-to render
-                     #:threads
-                     (droplet char droplet-lifetime
-                              collect-droplets
-                              (if sub1?
-                                  (sub1 x)
-                                  x)
-                              (if sub1?
-                                  (sub1 y)
-                                  y)))
-         ;; delay till next droplet
-         (for ([i till-droplet])
-           (hurd-write render-to render))]))
-    (lp)))
-
-
 (define (chargrid->raart chargrid [colorgrid #f])
   (define canvas-w
     (apply max
@@ -278,11 +198,17 @@
     (19 2)
     (20 1)))
 
-(define ((steam wisp-chargrid wisp-order render-to
+(define ((droplet char lifetime write-to x y) env)
+  (for ([i (in-range lifetime)])
+    (hurd-write write-to
+                (list char x y)))
+  (hurd-exit))
+
+(define ((steam steam-chargrid steam-order render-to
                 [till-droplet 5]
                 [droplet-lifetime 15]
-                #:between-wisp-min [between-wisp-min 15]
-                #:between-wisp-max [between-wisp-max 45]
+                #:between-steam-min [between-steam-min 15]
+                #:between-steam-max [between-steam-max 45]
                 #:sub1? [sub1? #t])
          env)
   (define collect-droplets
@@ -299,18 +225,18 @@
                          col (raart:char char))])))
   (let lp ()
     ;; delay for a bit
-    (for ([i (in-range (random between-wisp-min
-                               between-wisp-max))])
+    (for ([i (in-range (random between-steam-min
+                               between-steam-max))])
       (hurd-write render-to render))
-    ;; now write out all the wisp bits
-    (for ([coords wisp-order])
+    ;; now write out all the steam bits
+    (for ([coords steam-order])
       (match coords
         [(list x y)
          (when sub1?
            #;(set! x (sub1 x))
            (set! y (sub1 y)))
          (define char
-           (vector-ref (vector-ref wisp-chargrid y) x))
+           (vector-ref (vector-ref steam-chargrid y) x))
          ;; spawn a new droplet
          (hurd-write render-to render
                      #:threads
