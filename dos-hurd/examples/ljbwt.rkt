@@ -33,7 +33,7 @@
      (hurd-env-read1 (game-hurd gw)
                      (game-display-key gw)
                      (raart:blank 0 0))
-     (game-hurd gw)))
+     (hurd-env (game-hurd gw))))
    0 0))
 
 (struct game
@@ -213,9 +213,9 @@
          env)
   (define collect-droplets
     (new-key 'collect-droplets))
-  (define (render hurd blit-onto)
+  (define (render env blit-onto)
     (define all-droplets
-      (hurd-env-read hurd collect-droplets))
+      (env-read env collect-droplets))
     (for/fold ([canvas blit-onto])
               ([droplet-desc all-droplets])
       (match droplet-desc
@@ -259,11 +259,11 @@
          (steam steam-chargrid steam-order
                 steam-onto-key)])))
   (define (process env)
-    (define (render hurd)
+    (define (render env)
       (for/fold ([steamed-raart cup-raart])
                 ([steamy-renderer
-                  (hurd-env-read hurd steam-onto-key)])
-        (steamy-renderer hurd steamed-raart)))
+                  (env-read env steam-onto-key)])
+        (steamy-renderer env steamed-raart)))
     (let lp ()
       (hurd-write display-key render)
       (lp)))
@@ -293,15 +293,13 @@
     (define (render env)
       (define china-raart
         (val->raart
-         (hurd-env-read1 env
-                         teacup-china-key
-                         (raart:blank 0 0))
+         (env-read1 env teacup-china-key
+                    (raart:blank 0 0))
          env))
       (define chock-raart
         (val->raart
-         (hurd-env-read1 env
-                         teacup-chock-key
-                         (raart:blank 0 0))
+         (env-read1 env teacup-chock-key
+                    (raart:blank 0 0))
          env))
       (define cups-and-steam
         (raart:happend #:valign 'bottom
