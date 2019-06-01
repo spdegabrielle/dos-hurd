@@ -1,0 +1,4 @@
+DOS/Hurd is derived from the "win" modul in Jay McCarthy's
+"DOS" package.
+
+Modifications by Christopher Lemmer Webber.
