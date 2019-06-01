@@ -151,6 +151,9 @@
        (listof any/c))]
   [hurd-boot
    (-> hurd? hurd?)]
+  ;; alias
+  [rename hurd-boot hurd-step
+          (-> hurd? hurd?)]
   [hurd-env-replace
    (-> hurd? writeable-key? (listof any/c)
        hurd?)]
